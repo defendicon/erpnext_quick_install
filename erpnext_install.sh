@@ -442,27 +442,38 @@ py_version=$(python3 --version 2>&1 | awk '{print $2}')
 py_major=$(echo "$py_version" | cut -d '.' -f 1)
 py_minor=$(echo "$py_version" | cut -d '.' -f 2)
 
-if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt 10 ]]; then
-    echo -e "${LIGHT_BLUE}It appears this instance does not meet the minimum Python version required for ERPNext 14 (Python3.10)...${NC}"
+if [[ "$bench_version" == "develop" ]]; then
+    required_py_version="3.14"
+    required_py_full_version="3.14.0"
+else
+    required_py_version="3.10"
+    required_py_full_version="3.10.11"
+fi
+
+required_py_major=$(echo "$required_py_version" | cut -d '.' -f 1)
+required_py_minor=$(echo "$required_py_version" | cut -d '.' -f 2)
+
+if [[ -z "$py_version" ]] || [[ "$py_major" -lt "$required_py_major" ]] || [[ "$py_major" -eq "$required_py_major" && "$py_minor" -lt "$required_py_minor" ]]; then
+    echo -e "${LIGHT_BLUE}It appears this instance does not meet the minimum Python version required for ERPNext ${bench_version} (Python${required_py_version})...${NC}"
     sleep 2 
     echo -e "${YELLOW}Not to worry, we will sort it out for you${NC}"
     sleep 4
-    echo -e "${YELLOW}Installing Python 3.10+...${NC}"
+    echo -e "${YELLOW}Installing Python ${required_py_version}+...${NC}"
     sleep 2
 
     sudo apt -qq install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
         libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev -y && \
-    wget https://www.python.org/ftp/python/3.10.11/Python-3.10.11.tgz && \
-    tar -xf Python-3.10.11.tgz && \
-    cd Python-3.10.11 && \
+    wget "https://www.python.org/ftp/python/${required_py_full_version}/Python-${required_py_full_version}.tgz" && \
+    tar -xf "Python-${required_py_full_version}.tgz" && \
+    cd "Python-${required_py_full_version}" && \
     ./configure --prefix=/usr/local --enable-optimizations --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib" && \
     make -j "$(nproc)" && \
     sudo make altinstall && \
     cd .. && \
-    sudo rm -rf Python-3.10.11 && \
-    sudo rm Python-3.10.11.tgz && \
-    pip3.10 install --user --upgrade pip && \
-    echo -e "${GREEN}Python3.10 installation successful!${NC}"
+    sudo rm -rf "Python-${required_py_full_version}" && \
+    sudo rm "Python-${required_py_full_version}.tgz" && \
+    "pip${required_py_version}" install --user --upgrade pip && \
+    echo -e "${GREEN}Python${required_py_version} installation successful!${NC}"
     sleep 2
 fi
 
@@ -562,11 +573,15 @@ export NVM_DIR="$HOME/.nvm"
 
 
 os_version=$(lsb_release -rs)
-if [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
+if [[ "$bench_version" == "develop" ]]; then
+    nvm install 24
+    nvm alias default 24
+    node_version="24"
+elif [[ "$DISTRO" == "Ubuntu" && "$os_version" == "24.04" ]]; then
     nvm install 20
     nvm alias default 20
     node_version="20"
-elif [[ "$bench_version" == "version-15" || "$bench_version" == "develop" ]]; then
+elif [[ "$bench_version" == "version-15" ]]; then
     nvm install 18
     nvm alias default 18
     node_version="18"
@@ -582,8 +597,8 @@ echo -e "${GREEN}nvm and Node (v${node_version}) have been installed and aliased
 echo -e "${GREEN}Yarn v$(yarn --version) (Classic) installed globally.${NC}"
 sleep 2
 
-if [[ -z "$py_version" ]] || [[ "$py_major" -lt 3 ]] || [[ "$py_major" -eq 3 && "$py_minor" -lt 10 ]]; then
-    python3.10 -m venv "$USER"
+if [[ -z "$py_version" ]] || [[ "$py_major" -lt "$required_py_major" ]] || [[ "$py_major" -eq "$required_py_major" && "$py_minor" -lt "$required_py_minor" ]]; then
+    "python${required_py_version}" -m venv "$USER"
     source "$USER/bin/activate"
     nvm use default
 fi
