@@ -672,9 +672,19 @@ case "$erpnext_install" in
     ;;
 esac
 
-python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-playbook_file="/usr/local/lib/python${python_version}/dist-packages/bench/playbooks/roles/mariadb/tasks/main.yml"
-sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+playbook_file=$(python3 - <<'PY'
+import os
+import bench
+
+bench_dir = os.path.dirname(bench.__file__)
+print(os.path.join(bench_dir, "playbooks/roles/mariadb/tasks/main.yml"))
+PY
+)
+if [[ -f "$playbook_file" ]]; then
+    sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+else
+    echo -e "${YELLOW}Warning: MariaDB playbook not found at ${playbook_file}.${NC}"
+fi
 
 echo -e "${LIGHT_BLUE}Would you like to continue with production install? (yes/no)${NC}"
 read -p "Response: " continue_prod
