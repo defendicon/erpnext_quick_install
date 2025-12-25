@@ -672,18 +672,20 @@ case "$erpnext_install" in
     ;;
 esac
 
-playbook_file=$(python3 - <<'PY'
-import os
-import bench
+bench_location=$(python3 -m pip show frappe-bench 2>/dev/null | awk -F': ' '/Location/ {print $2}' | head -1)
+if [[ -z "$bench_location" && -n "$required_py_version" ]] && command -v "python${required_py_version}" >/dev/null 2>&1; then
+    bench_location=$("python${required_py_version}" -m pip show frappe-bench 2>/dev/null | awk -F': ' '/Location/ {print $2}' | head -1)
+fi
 
-bench_dir = os.path.dirname(bench.__file__)
-print(os.path.join(bench_dir, "playbooks/roles/mariadb/tasks/main.yml"))
-PY
-)
-if [[ -f "$playbook_file" ]]; then
-    sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+if [[ -n "$bench_location" ]]; then
+    playbook_file="${bench_location}/bench/playbooks/roles/mariadb/tasks/main.yml"
+    if [[ -f "$playbook_file" ]]; then
+        sudo sed -i 's/- include: /- include_tasks: /g' "$playbook_file"
+    else
+        echo -e "${YELLOW}Warning: MariaDB playbook not found at ${playbook_file}.${NC}"
+    fi
 else
-    echo -e "${YELLOW}Warning: MariaDB playbook not found at ${playbook_file}.${NC}"
+    echo -e "${YELLOW}Warning: Unable to locate frappe-bench installation to patch MariaDB playbook.${NC}"
 fi
 
 echo -e "${LIGHT_BLUE}Would you like to continue with production install? (yes/no)${NC}"
